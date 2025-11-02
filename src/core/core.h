@@ -11,8 +11,8 @@ public:
     explicit Core(QObject *parent = nullptr);
     ~Core() override;
 
-    static bool isValid(std::vector<QString> &exp);
-    static QString evaluate(std::vector<QString> &exp);
+    static bool isValid(const std::vector<QString> &exp);
+    static QString evaluate(const std::vector<QString> &exp);
 };
 
 #endif //CALCULATOR_CORE_H

@@ -39,6 +39,14 @@ void Calculator::onOperandClick(const QString &symbol)
         isResult = false;
     }
 
+    if (operand.isEmpty() && !exp.empty()) {
+        if (const QString &prev = exp.back(); prev == ")") {
+            input.append("*");
+            exp.emplace_back("*");
+            ui->inputBrowser->setText(input);
+        }
+    }
+
     operand.append(symbol);
 
     ui->operandBrowser->setText(operand);
@@ -66,7 +74,16 @@ void Calculator::onOperatorClick(const QString &symbol)
 
     if (symbol == "(") {
         if (!operand.isEmpty()) {
+            input.append(operand);
+            exp.push_back(operand);
             operand.clear();
+            input.append("*");
+            exp.emplace_back("*");
+        } else if (!exp.empty()) {
+            if (const QString &prev = exp.back(); !prev.isEmpty() && (prev.back().isDigit() || prev == ")")) {
+                input.append("*");
+                exp.emplace_back("*");
+            }
         }
 
         input.append(symbol);
@@ -103,6 +120,24 @@ void Calculator::onOperatorClick(const QString &symbol)
         if (operand.isEmpty() && prevIsOperator) {
             operand.append(symbol);
 
+            ui->operandBrowser->setText(operand);
+            return;
+        }
+    }
+
+    if (operand.isEmpty()) {
+        bool prevIsOperand = false;
+
+        if (!exp.empty()) {
+            if (const QString &prev = exp.back(); !prev.isEmpty() && (prev.back().isDigit() || prev == ")"))
+                prevIsOperand = true;
+        }
+
+        if (prevIsOperand) {
+            input.append(symbol);
+            exp.push_back(symbol);
+
+            ui->inputBrowser->setText(input);
             ui->operandBrowser->setText(operand);
             return;
         }
