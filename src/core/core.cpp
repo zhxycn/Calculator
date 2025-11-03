@@ -1,6 +1,11 @@
 #include "core.h"
 
-Core::Core(QObject *parent) : QObject(parent) {}
+#include <sstream>
+#include <gmpxx.h>
+
+Core::Core(QObject *parent) : QObject(parent) {
+    mpf_set_default_prec(256);
+}
 
 Core::~Core() = default;
 
@@ -21,20 +26,20 @@ bool isNumber(const QString &tok) {
     return ok;
 }
 
-bool execute(std::vector<double> &vals, const QString &op) {
+bool execute(std::vector<mpf_class> &vals, const QString &op) {
     if (vals.size() < 2) return false;
 
-    const double b = vals.back();
+    const mpf_class b = vals.back();
     vals.pop_back();
-    const double a = vals.back();
+    const mpf_class a = vals.back();
     vals.pop_back();
-    double r = 0.0;
-    
+    mpf_class r = 0;
+
     if (op == "+") r = a + b;
     else if (op == "-") r = a - b;
     else if (op == "*") r = a * b;
     else if (op == "/") {
-        if (b == 0.0) return false;
+        if (b == 0) return false;
         r = a / b;
     } else {
         return false;
@@ -44,11 +49,20 @@ bool execute(std::vector<double> &vals, const QString &op) {
     return true;
 }
 
-QString format(const double v) {
-    if (!std::isfinite(v)) return "Error";
-    QString s = QString::number(v, 'g', 12);
-    if (s == "-0") s = "0";
-    return s;
+QString format(const mpf_class &v) {
+    std::ostringstream oss;
+    oss << v;
+    std::string s = oss.str();
+
+    if (s == "-0" || s == "-0.0") s = "0";
+
+    if (s.find('.') != std::string::npos) {
+        while (!s.empty() && s.back() == '0') s.pop_back();
+        if (!s.empty() && s.back() == '.') s.pop_back();
+        if (s.empty()) s = "0";
+    }
+
+    return QString::fromStdString(s);
 }
 }
 
@@ -91,7 +105,7 @@ bool Core::isValid(const std::vector<QString> &exp)
 
 QString Core::evaluate(const std::vector<QString> &exp)
 {
-    std::vector<double> values;
+    std::vector<mpf_class> values;
     std::vector<QString> ops;
     values.reserve(exp.size());
     ops.reserve(exp.size());
@@ -112,6 +126,7 @@ QString Core::evaluate(const std::vector<QString> &exp)
             while (!ops.empty() && ops.back() != "(") {
                 if (!applyTop()) return "Error";
             }
+            if (ops.empty()) return "Error";
             ops.pop_back();
             continue;
         }
@@ -124,7 +139,12 @@ QString Core::evaluate(const std::vector<QString> &exp)
             continue;
         }
 
-        values.push_back(tok.toDouble());
+        try {
+            mpf_class v(tok.toStdString());
+            values.push_back(v);
+        } catch (...) {
+            return "Error";
+        }
     }
 
     while (!ops.empty()) {
